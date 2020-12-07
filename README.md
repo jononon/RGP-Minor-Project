@@ -2,7 +2,7 @@
 
 Task List
 1.	Github repository - DONE
-2.  Put Waffle Pi in track file
+2.  Put Waffle Pi in track file - DONE
 3.	Making the robot move
 4.	Moving with light sensors on path
 5.	Responding to object by stopping
