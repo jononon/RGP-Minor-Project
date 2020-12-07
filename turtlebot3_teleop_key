@@ -38,29 +38,41 @@ from sensor_msgs.msg import Illuminance
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
+#####################################################################################
 roll = pitch = yaw = 0.0
 kp = 0.5
 tp = 0.0025
 angPosStep = 1e-3
 desAngPos = 0.0
+leftlightval = 0.0
 
+## real phi value OR desired phi value (angle of rotation)
 def get_rotation(msg):
     global roll, pitch, yaw
     orientation_q = msg.pose.pose.orientation
     orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
     (roll, pitch, yaw) = euler_from_quaternion(orientation_list)
-    print("PHI : " + str(yaw))
+    # print("PHI : " + str(yaw))
+    rospy.loginfo('PHI: {}'.format(yaw))
 
-def callback(data):
-    x = data.illuminance
-    rospy.loginfo('x: {}'.format(x))
-    leftlightval
-    if(x > leftlightval): ##des abng =  current position + angpos step
+
+def leftIlluminance(data):
+    global leftlightval
+    leftlightval = data.illuminance
+    # rospy.loginfo('x: {}, y: {}'.format(leftlightval))
+
+def get_illuminance(data):
+    global leftlightval, desAngPos
+    rightlightval = data.illuminance
+    rospy.loginfo('leftIl: {}, rightIl: {}'.format(leftlightval, rightlightval))
+    if(rightlightval > leftlightval): ##des abng =  current position + angpos step
         desAngPos = angPosStep
-    if(x < leftlightval):
+    if(rightlightval < leftlightval):
         desAngPos =- angPosStep
+    # print("desAngPos: " + str(desAngPos))
+    rospy. loginfo('desAngPos: {}'.format(desAngPos))
 
-
+#####################################################################################
 
 
 BURGER_MAX_LIN_VEL = 0.22
@@ -148,17 +160,10 @@ def checkAngularLimitVelocity(vel):
       vel = constrain(vel, -BURGER_MAX_ANG_VEL, BURGER_MAX_ANG_VEL)
 
     return vel
-## my stuff
-global leftlightval
 
-def leftIlluminance(data):
-    leftlightval = data.illuminance
-    rospy.loginfo('x: {}'.format(leftlightval))
-## my stuff
+
 if __name__=="__main__":
-    ## my stuff
-    #listener()
-    ## my stuff
+    
     if os.name != 'nt':
         settings = termios.tcgetattr(sys.stdin)
 
@@ -166,9 +171,12 @@ if __name__=="__main__":
 
     rospy.init_node('turtlebot3_teleop')
     pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+    #####################################################################################
     odomsub = rospy.Subscriber("/odom", Odometry, get_rotation)
-    sub1 = rospy.Subscriber("/light_sensor_plugin/lightSensor", Illuminance, callback)
     sub2 = rospy.Subscriber("/light_sensor_plugin/leftLightSensor", Illuminance, leftIlluminance)
+    sub1 = rospy.Subscriber("/light_sensor_plugin/lightSensor", Illuminance, get_illuminance)
+    #####################################################################################
+
 
     turtlebot3_model = rospy.get_param("model", "burger")
 
@@ -213,7 +221,6 @@ if __name__=="__main__":
                 status = 0
 
             twist = Twist()
-            #illuminance = Illuminance()
 
             control_linear_vel = makeSimpleProfile(control_linear_vel, target_linear_vel, (LIN_VEL_STEP_SIZE/2.0))
             twist.linear.x = control_linear_vel; twist.linear.y = 0.0; twist.linear.z = 0.0
@@ -222,7 +229,6 @@ if __name__=="__main__":
             twist.angular.x = 0.0; twist.angular.y = 0.0; twist.angular.z = control_angular_vel
 
             pub.publish(twist)
-            #sub1.subsribe(illuminance)
 
     except:
         print(e)
