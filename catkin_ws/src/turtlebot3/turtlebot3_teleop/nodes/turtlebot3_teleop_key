@@ -39,9 +39,10 @@ from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 #####################################################################################
+global leftlightval, rightlightval, defAngPos
 roll = pitch = yaw = 0.0
 kp = 0.5
-tp = 0.0025
+tp = 0.025
 angPosStep = 1e-3
 desAngPos = 0.0
 leftlightval = 0.0
@@ -57,19 +58,19 @@ def get_rotation(msg):
 
 
 def leftIlluminance(data):
-    global leftlightval
+#     global leftlightval
     leftlightval = data.illuminance
     #rospy.loginfo('x: {}, y: {}'.format(leftlightval))
 
 def get_illuminance(data):
-    global leftlightval, desAngPos
+#     global leftlightval, desAngPos
     rightlightval = data.illuminance
-    rospy.loginfo('leftIl: {}, rightIl: {}'.format(leftlightval, rightlightval))
-    if(rightlightval > leftlightval): ##des abng =  current position + angpos step
-        desAngPos = angPosStep
-    if(rightlightval < leftlightval):
-        desAngPos =- angPosStep
-    print("desAngPos: " + str(desAngPos))
+#     rospy.loginfo('leftIl: {}, rightIl: {}'.format(leftlightval, rightlightval))
+#     if(rightlightval > leftlightval): ##des abng =  current position + angpos step
+#         desAngPos = angPosStep
+#     if(rightlightval < leftlightval):
+#         desAngPos =- angPosStep
+#     print("desAngPos: " + str(desAngPos))
     #rospy. loginfo('desAngPos: {}'.format(desAngPos))
 
 #####################################################################################
@@ -229,14 +230,20 @@ if __name__=="__main__":
             twist = Twist()
 
             if autoRun :
+              
+                if(rightlightval > leftlightval): ##des abng =  current position + angpos step
+                    desAngPos = angPosStep
+                if(rightlightval < leftlightval):
+                    desAngPos =- angPosStep
+
                 print(tp)
-                twist.linear.x = tp * 10
+                twist.linear.x = tp
                 twist.linear.y = 0.0
                 twist.linear.z = 0.0
 
                 twist.angular.x = 0.0
                 twist.angular.y = 0.0
-                twist.angular.z = kp * (desAngPos - twist.angular.z)
+                twist.angular.z = kp * (desAngPos - phi)
 
             else :
                 control_linear_vel = makeSimpleProfile(control_linear_vel, target_linear_vel, (LIN_VEL_STEP_SIZE/2.0))
