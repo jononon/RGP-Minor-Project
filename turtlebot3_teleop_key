@@ -41,11 +41,12 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 #####################################################################################
 roll = pitch = yaw = 0.0
-kp = 50.0
-tp = 0.0025
-angPosStep = 0.00652 #1e-3 
+kp = 8.0
+tp = 0.015
+angPosStep = 1e-3
 desAngPos = 0.0
 leftlightval = 0.0
+rightlightval = 0.0
 phi = 0.0
 
 
@@ -67,13 +68,13 @@ def leftIlluminance(data):
 
 
 def get_illuminance(data):
-    global leftlightval, desAngPos
+    global rightlightval
     rightlightval = data.illuminance
     # rospy.loginfo('leftIl: {}, rightIl: {}'.format(leftlightval, rightlightval))
-    if (rightlightval > leftlightval):  ##des abng =  current position + angpos step
-        desAngPos = angPosStep
-    if (rightlightval < leftlightval):
-        desAngPos =- angPosStep
+#    if (rightlightval > leftlightval):  ##des abng =  current position + angpos step
+#        desAngPos = angPosStep
+#    if (rightlightval < leftlightval):
+#        desAngPos =- angPosStep
     #print("desAngPos: " + str(desAngPos))
     # rospy. loginfo('desAngPos: {}'.format(desAngPos))
 
@@ -241,7 +242,15 @@ if __name__ == "__main__":
 
             if autoRun:
                 print(tp)
-                twist.linear.x = tp * 10
+
+                print(str(rightlightval))
+                print(str(leftlightval))
+                if (rightlightval > leftlightval):  ##des abng =  current position + angpos step
+                    desAngPos = angPosStep
+                elif (rightlightval < leftlightval):
+                    desAngPos = - angPosStep
+
+                twist.linear.x = tp
                 twist.linear.y = 0.0
                 twist.linear.z = 0.0
 
@@ -252,6 +261,7 @@ if __name__ == "__main__":
                 print("AngPos: " + str(phi))
                 #print("AngPos: " + str(twist.angular.z))
                 twist.angular.z = kp * (desAngPos - phi)
+                print("Angvel: " + str(twist.angular.z))
 
             else:
                 control_linear_vel = makeSimpleProfile(control_linear_vel, target_linear_vel, (LIN_VEL_STEP_SIZE / 2.0))
