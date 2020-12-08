@@ -34,6 +34,46 @@ if os.name == 'nt':
   import msvcrt
 else:
   import tty, termios
+from sensor_msgs.msg import Illuminance
+from nav_msgs.msg import Odometry
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
+#####################################################################################
+roll = pitch = yaw = 0.0
+kp = 0.5
+tp = 0.0025
+angPosStep = 1e-3
+desAngPos = 0.0
+leftlightval = 0.0
+
+## real phi value OR desired phi value (angle of rotation)
+def get_rotation(msg):
+    global roll, pitch, yaw
+    orientation_q = msg.pose.pose.orientation
+    orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
+    (roll, pitch, yaw) = euler_from_quaternion(orientation_list)
+    #print("PHI : " + str(yaw))
+    #rospy.loginfo('PHI: {}'.format(yaw))
+
+
+def leftIlluminance(data):
+    global leftlightval
+    leftlightval = data.illuminance
+    #rospy.loginfo('x: {}, y: {}'.format(leftlightval))
+
+def get_illuminance(data):
+    global leftlightval, desAngPos
+    rightlightval = data.illuminance
+    rospy.loginfo('leftIl: {}, rightIl: {}'.format(leftlightval, rightlightval))
+    if(rightlightval > leftlightval): ##des abng =  current position + angpos step
+        desAngPos = angPosStep
+    if(rightlightval < leftlightval):
+        desAngPos =- angPosStep
+    print("desAngPos: " + str(desAngPos))
+    #rospy. loginfo('desAngPos: {}'.format(desAngPos))
+
+#####################################################################################
+
 
 BURGER_MAX_LIN_VEL = 0.22
 BURGER_MAX_ANG_VEL = 2.84
@@ -121,12 +161,22 @@ def checkAngularLimitVelocity(vel):
 
     return vel
 
+
 if __name__=="__main__":
+    
     if os.name != 'nt':
         settings = termios.tcgetattr(sys.stdin)
 
+
+
     rospy.init_node('turtlebot3_teleop')
     pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+    #####################################################################################
+    odomsub = rospy.Subscriber("/odom", Odometry, get_rotation)
+    sub2 = rospy.Subscriber("/light_sensor_plugin/leftLightSensor", Illuminance, leftIlluminance)
+    sub1 = rospy.Subscriber("/light_sensor_plugin/lightSensor", Illuminance, get_illuminance)
+    #####################################################################################
+
 
     turtlebot3_model = rospy.get_param("model", "burger")
 
@@ -135,6 +185,8 @@ if __name__=="__main__":
     target_angular_vel  = 0.0
     control_linear_vel  = 0.0
     control_angular_vel = 0.0
+
+    autoRun = False
 
     try:
         print(msg)
@@ -162,6 +214,10 @@ if __name__=="__main__":
                 target_angular_vel  = 0.0
                 control_angular_vel = 0.0
                 print(vels(target_linear_vel, target_angular_vel))
+            elif key == 'j' :
+                autoRun = True
+            elif key == 'k' :
+                autoRun = False
             else:
                 if (key == '\x03'):
                     break
@@ -172,11 +228,22 @@ if __name__=="__main__":
 
             twist = Twist()
 
-            control_linear_vel = makeSimpleProfile(control_linear_vel, target_linear_vel, (LIN_VEL_STEP_SIZE/2.0))
-            twist.linear.x = control_linear_vel; twist.linear.y = 0.0; twist.linear.z = 0.0
+            if autoRun :
+                print(tp)
+                twist.linear.x = tp * 10
+                twist.linear.y = 0.0
+                twist.linear.z = 0.0
 
-            control_angular_vel = makeSimpleProfile(control_angular_vel, target_angular_vel, (ANG_VEL_STEP_SIZE/2.0))
-            twist.angular.x = 0.0; twist.angular.y = 0.0; twist.angular.z = control_angular_vel
+                twist.angular.x = 0.0
+                twist.angular.y = 0.0
+                twist.angular.z = kp * (desAngPos - twist.angular.z)
+
+            else :
+                control_linear_vel = makeSimpleProfile(control_linear_vel, target_linear_vel, (LIN_VEL_STEP_SIZE/2.0))
+                twist.linear.x = control_linear_vel; twist.linear.y = 0.0; twist.linear.z = 0.0
+
+                control_angular_vel = makeSimpleProfile(control_angular_vel, target_angular_vel, (ANG_VEL_STEP_SIZE/2.0))
+                twist.angular.x = 0.0; twist.angular.y = 0.0; twist.angular.z = control_angular_vel
 
             pub.publish(twist)
 
@@ -191,3 +258,4 @@ if __name__=="__main__":
 
     if os.name != 'nt':
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
+
