@@ -29,6 +29,7 @@
 
 import rospy
 from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Point
 import sys, select, os
 import math
 if os.name == 'nt':
@@ -42,9 +43,9 @@ from sensor_msgs.msg import LaserScan
 
 #####################################################################################
 roll = pitch = yaw = 0.0
-kp = 2.0
-tp = 0.015#0.02
-angPosStep = 0.03#0.0625 # 1e-3
+kp = 1.0
+tp = 0.018#0.02
+angPosStep = 0.055#0.0625 # 1e-3
 desAngPos = 0.0
 leftlightval = 0.0
 rightlightval = 0.0
@@ -53,12 +54,13 @@ phi = 0.0
 # obstacle avoidance variables
 posx = 0.0
 posy = 0.0
+theta = 0.0
 range = 0.0
-range_min = 0.227448582649 #testing value
+range_min = 0.40#0.227448582649 #testing value
 point_one = [-0.895728, -0.756365]
 point_two = [-0.476662, -1.258210]
 
-# OBSTACLE POSE
+# OBSTACLE POSE for examination
 # X = -0.881204
 # Y = -1.401245
 # Z = 0.499990
@@ -70,6 +72,7 @@ point_two = [-0.476662, -1.258210]
 # POINT 2 (RURN TO TRACK)
 # X = -0.476662
 # Y = -1.258210
+'''
 def obstacle_routine(point, twist):
     desX = point[0]
     desY = point[1]
@@ -84,25 +87,48 @@ def obstacle_routine(point, twist):
         phiError = desPhi - phi
         angularVel = 0.15 * phiError
         twist.angular.z = angularVel
-        if(abs(phiError) < 0.001):
+        if(abs(phiError) < 0.1):
             twist.linear.x = tp
             pub.publish(twist)
             return
         twist.linear.x = 0.0
         pub.publish(twist)
-
+'''
+def obstacle_routine(point, twist, pub):
+    goal = Point()
+    goal.x = point[0]
+    goal.y = point[1]
+    #dist = math.sqrt(xd*xd + yd*yd)
+    while (1):
+        xd = goal.x - posx
+        yd = goal.y - posy
+        angle_to_goal = math.atan2(yd, xd)
+        print("goal: x = " + str(goal.x) + ", y = " + str(goal.y))
+        print("xd = " + str(xd) + ", yd = " + str(yd))
+        if abs(angle_to_goal - phi) > 0.1:
+            print("rotating")
+            twist.linear.x = 0.0
+            twist.angular.z = 0.15*(angle_to_goal - phi)
+        else:
+            print("forward")
+            twist.linear.x = tp
+            twist.angular.z = 0.0
+        pub.publish(twist)
+        rate = rospy.Rate(4) #hz
+        rate.sleep()
 
 
 
 
 def get_pose(msg):
-    global posx, posy
+    global posx, posy, theta
     posx = msg.pose.pose.position.x
     posy = msg.pose.pose.position.y
+    #phi
 
 def get_laser_scan(msg):
     global range
-    range = msg.ranges[0] #getfirst elem
+    range = msg.ranges[0]
 
 
 
@@ -317,8 +343,8 @@ if __name__ == "__main__":
                 twist.angular.y = 0.0
                 if(range_min >= range):
                     print("Obstacle spotted")
-                    obstacle_routine(point_one, twist)
-                    obstacle_routine(point_two, twist)
+                    obstacle_routine(point_one, twist, pub)
+                    obstacle_routine(point_two, twist, pub)
                 print("--------------------------")
                 print("range_min: " + str(range_min))
                 print("range: " + str(range))
