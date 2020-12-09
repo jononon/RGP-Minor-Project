@@ -38,16 +38,33 @@ else:
 from sensor_msgs.msg import Illuminance
 from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from sensor_msgs.msg import LaserScan
 
 #####################################################################################
 roll = pitch = yaw = 0.0
-kp = 8.0
-tp = 0.015
-angPosStep = 1e-3
+kp = 2.0
+tp = 0.015#0.02
+angPosStep = 0.03#0.0625 # 1e-3
 desAngPos = 0.0
 leftlightval = 0.0
 rightlightval = 0.0
 phi = 0.0
+####################################
+# obstacle avoidance variables
+posx = 0.0
+posy = 0.0
+range = 0.0
+range_min = 0.227448582649 #testing value
+
+def get_pose(msg):
+    global posx, posy
+    posx = msg.pose.pose.position.x
+    posy = msg.pose.pose.position.y
+
+def get_laser_scan(msg):
+    global range
+    range = msg.ranges[0] #getfirst elem
+
 
 
 ## real phi value OR desired phi value (angle of rotation)
@@ -187,6 +204,9 @@ if __name__ == "__main__":
     sub2 = rospy.Subscriber("/light_sensor_plugin/leftLightSensor", Illuminance, leftIlluminance)
     sub1 = rospy.Subscriber("/light_sensor_plugin/lightSensor", Illuminance, get_illuminance)
     #####################################################################################
+    #obstacle avoidance
+    odom_sub_avoidance = rospy.Subscriber("/odom", Odometry, get_pose)
+    laser_scan_sub = rospy.Subscriber("/scan", LaserScan, get_laser_scan)
 
     turtlebot3_model = rospy.get_param("model", "burger")
 
@@ -246,9 +266,9 @@ if __name__ == "__main__":
                 print(str(rightlightval))
                 print(str(leftlightval))
                 if (rightlightval > leftlightval):  ##des abng =  current position + angpos step
-                    desAngPos = angPosStep
+                    desAngPos = phi + angPosStep
                 elif (rightlightval < leftlightval):
-                    desAngPos = - angPosStep
+                    desAngPos = phi - angPosStep
 
                 twist.linear.x = tp
                 twist.linear.y = 0.0
@@ -256,6 +276,16 @@ if __name__ == "__main__":
 
                 twist.angular.x = 0.0
                 twist.angular.y = 0.0
+                if(range_min >= range):
+                    print("Obstacle spotted")
+                    autoRun = False
+                print("--------------------------")
+                print("range_min: " + str(range_min))
+                print("range: " + str(range))
+                print("posx: " + str(posx) + "  posy: " + str(posy))
+                print("linearvel: " + str(tp))
+                print("rightlight: " + str(rightlightval))
+                print("leftlight: " + str(leftlightval))
                 print("kp: " + str(kp))
                 print("desAngPos: " + str(desAngPos))
                 print("AngPos: " + str(phi))
