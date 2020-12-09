@@ -58,7 +58,7 @@ theta = 0.0
 range = 0.0
 range_min = 0.40#0.227448582649 #testing value
 point_one = [-0.895728, -0.756365]
-point_two = [-0.476662, -1.258210]
+point_two = [-0.500863, -1.284815]
 
 # OBSTACLE POSE for examination
 # X = -0.881204
@@ -72,8 +72,8 @@ point_two = [-0.476662, -1.258210]
 # POINT 2 (RURN TO TRACK)
 # X = -0.476662
 # Y = -1.258210
-'''
-def obstacle_routine(point, twist):
+
+def obstacle_routine(point, twist, pub):
     desX = point[0]
     desY = point[1]
     twist.linear.y = 0.0
@@ -83,18 +83,23 @@ def obstacle_routine(point, twist):
     while (1):
         xError = desX - posx
         yError = desY - posy
+        if (math.sqrt(xError ** 2 + yError ** 2) < 0.1):
+            twist.linear.x = 0.0
+            twist.angular.z = 0.0
+            pub.publish(twist)
+            return
         desPhi = math.atan2(yError, xError)
         phiError = desPhi - phi
         angularVel = 0.15 * phiError
-        twist.angular.z = angularVel
         if(abs(phiError) < 0.1):
-            twist.linear.x = tp
-            pub.publish(twist)
-            return
-        twist.linear.x = 0.0
+            twist.linear.x = 0.25
+            twist.angular.z = 0.0
+        else:
+            twist.linear.x = 0.0
+            twist.angular.z = angularVel
         pub.publish(twist)
-'''
-def obstacle_routine(point, twist, pub):
+
+'''def obstacle_routine(point, twist, pub):
     goal = Point()
     goal.x = point[0]
     goal.y = point[1]
@@ -116,7 +121,7 @@ def obstacle_routine(point, twist, pub):
         pub.publish(twist)
         rate = rospy.Rate(4) #hz
         rate.sleep()
-
+'''
 
 
 
@@ -335,7 +340,6 @@ if __name__ == "__main__":
                 elif (rightlightval < leftlightval):
                     desAngPos = phi - angPosStep
 
-                twist.linear.x = tp
                 twist.linear.y = 0.0
                 twist.linear.z = 0.0
 
@@ -345,6 +349,11 @@ if __name__ == "__main__":
                     print("Obstacle spotted")
                     obstacle_routine(point_one, twist, pub)
                     obstacle_routine(point_two, twist, pub)
+                    while (phi < 0.4):
+                        twist.linear.x = 0
+                        twist.angular.z = 0.055
+                        pub.publish(twist)
+                twist.linear.x = tp
                 print("--------------------------")
                 print("range_min: " + str(range_min))
                 print("range: " + str(range))
