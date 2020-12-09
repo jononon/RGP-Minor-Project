@@ -70,15 +70,27 @@ point_two = [-0.476662, -1.258210]
 # POINT 2 (RURN TO TRACK)
 # X = -0.476662
 # Y = -1.258210
-def obstacle_routine(point):
-    reached = False
+def obstacle_routine(point, twist):
     desX = point[0]
     desY = point[1]
-    while (!reached):
+    twist.linear.y = 0.0
+    twist.linear.z = 0.0
+    twist.angular.x = 0.0
+    twist.angular.y = 0.0
+    while (1):
         xError = desX - posx
         yError = desY - posy
         desPhi = math.atan2(yError, xError)
         phiError = desPhi - phi
+        angularVel = 0.15 * phiError
+        twist.angular.z = angularVel
+        if(abs(phiError) < 0.001):
+            twist.linear.x = tp
+            pub.publish(twist)
+            return
+        twist.linear.x = 0.0
+        pub.publish(twist)
+
 
 
 
@@ -305,8 +317,8 @@ if __name__ == "__main__":
                 twist.angular.y = 0.0
                 if(range_min >= range):
                     print("Obstacle spotted")
-                    obstacle_routine(point_one)
-                    obstacle_routine(point_two)
+                    obstacle_routine(point_one, twist)
+                    obstacle_routine(point_two, twist)
                 print("--------------------------")
                 print("range_min: " + str(range_min))
                 print("range: " + str(range))
