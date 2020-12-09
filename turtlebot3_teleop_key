@@ -30,7 +30,7 @@
 import rospy
 from geometry_msgs.msg import Twist
 import sys, select, os
-
+import math
 if os.name == 'nt':
     import msvcrt
 else:
@@ -55,6 +55,33 @@ posx = 0.0
 posy = 0.0
 range = 0.0
 range_min = 0.227448582649 #testing value
+point_one = [-0.895728, -0.756365]
+point_two = [-0.476662, -1.258210]
+
+# OBSTACLE POSE
+# X = -0.881204
+# Y = -1.401245
+# Z = 0.499990
+
+# POINT 1
+# X = -0.895728
+# Y = -0.756365
+
+# POINT 2 (RURN TO TRACK)
+# X = -0.476662
+# Y = -1.258210
+def obstacle_routine(point):
+    reached = False
+    desX = point[0]
+    desY = point[1]
+    while (!reached):
+        xError = desX - posx
+        yError = desY - posy
+        desPhi = math.atan2(yError, xError)
+        phiError = desPhi - phi
+
+
+
 
 def get_pose(msg):
     global posx, posy
@@ -278,7 +305,8 @@ if __name__ == "__main__":
                 twist.angular.y = 0.0
                 if(range_min >= range):
                     print("Obstacle spotted")
-                    autoRun = False
+                    obstacle_routine(point_one)
+                    obstacle_routine(point_two)
                 print("--------------------------")
                 print("range_min: " + str(range_min))
                 print("range: " + str(range))
@@ -322,4 +350,3 @@ if __name__ == "__main__":
 
     if os.name != 'nt':
         termios.tcsetattr(sys.stdin, termios.TCSADRAIN, settings)
-
